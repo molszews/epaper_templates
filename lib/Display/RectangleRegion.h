@@ -1,4 +1,4 @@
-#include <Adafruit_GFX.h>
+#include <GFX.h>
 #include <ArduinoJson.h>
 #include <GxEPD2_EPD.h>
 #include <GxEPD2_GFX.h>

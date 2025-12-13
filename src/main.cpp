@@ -9,6 +9,8 @@
 #include <EnvironmentConfig.h>
 #include <TimeLib.h>
 
+#include "MemLeak.h"
+
 #if defined(ESP32)
 #include <WebServer.h>
 #elif defined(ESP8266)
@@ -23,7 +25,6 @@
 #include <GxEPD2_BW.h>
 #include <GxEPD2_EPD.h>
 #include <GxEPD2_GFX.h>
-#include <MqttClient.h>
 #include <NTPClient.h>
 #include <Settings.h>
 #include <Timezone.h>
@@ -36,7 +37,6 @@ Settings settings;
 GxEPD2_GFX* display = NULL;
 DisplayTemplateDriver* driver = NULL;
 EpaperWebServer* webServer = NULL;
-MqttClient* mqttClient = NULL;
 NTPClient* timeClient;
 
 // Don't attempt to reconnect to wifi if we've never connected
@@ -77,12 +77,19 @@ void initDisplay() {
     delete display;
     display = NULL;
   }
+  display = DisplayTypeHelpers::buildDisplay(
+  GxEPD2::Panel::GDEM133Z91,
+  14,
+  12,
+  13,
+  27);
 
-  display = DisplayTypeHelpers::buildDisplay(settings.display.display_type,
-      settings.hardware.dc_pin,
-      settings.hardware.rst_pin,
-      settings.hardware.busy_pin,
-      settings.hardware.getSsPin());
+  // display = DisplayTypeHelpers::buildDisplay(
+  //   settings.display.display_type,
+  //     settings.hardware.dc_pin,
+  //     settings.hardware.rst_pin,
+  //     settings.hardware.busy_pin,
+  //     settings.hardware.getSsPin());
 
   if (driver != NULL) {
     delete driver;
@@ -106,10 +113,12 @@ void initSleepSettings() {
 
 void applySettings() {
   Serial.println(F("Applying settings"));
+  MEMCK;
 
   Timezones.setDefaultTimezone(*settings.system.timezone);
 
   if (timeClient != NULL) {
+    timeClient->end();
     delete timeClient;
     timeClient = NULL;
   }
@@ -124,25 +133,6 @@ void applySettings() {
     WiFi.disconnect(true);
     WiFi.begin(settings.network.wifi_ssid.c_str(),
         settings.network.wifi_password.c_str());
-  }
-
-  if (mqttClient != NULL) {
-    delete mqttClient;
-    mqttClient = NULL;
-  }
-
-  if (settings.mqtt.serverHost().length() > 0) {
-    mqttClient = new MqttClient(settings.mqtt.serverHost(),
-        settings.mqtt.serverPort(),
-        settings.mqtt.variables_topic_pattern,
-        settings.mqtt.username,
-        settings.mqtt.password,
-        settings.mqtt.client_status_topic);
-    mqttClient->onVariableUpdate(
-        [](const String& variable, const String& value) {
-          driver->updateVariable(variable, value);
-        });
-    mqttClient->begin();
   }
 
   if (settings.display.template_name.length() > 0) {
@@ -219,7 +209,10 @@ void wifiManagerConfigSaved() {
 }
 
 void setup() {
+  delay(2000);
   Serial.begin(115200);
+  Serial.println("setup 1");
+  delay(2000);
 
   Bleeper.verbose()
       .configuration.set(&settings)
@@ -228,7 +221,18 @@ void setup() {
       .done()
       .init();
 
+  Serial.println("initDisplay 1");
+  MEMCK;
+  settings.display.display_type = GxEPD2::Panel::GDEM133Z91;
+  // 14,
+  // 12,
+  // 13,
+  // 27);
+  settings.dump(Serial);
+  MEMCK;
   initDisplay();
+  Serial.println("initDisplay 2");
+  MEMCK;
 
   WiFiManager wifiManager;
 
@@ -257,11 +261,14 @@ void setup() {
     }
   }
 
+  Serial.println("applySettings 1");
   applySettings();
+  Serial.println("applySettings 2");
 }
 
 void loop() {
   if (shouldRestart) {
+    Serial.println("shouldRestart");
     ESP.restart();
   }
 
@@ -275,6 +282,7 @@ void loop() {
   }
 
   if (!suspendSleep && initialSleepMode == SleepMode::DEEP_SLEEP) {
+    Serial.println("DEEP_SLEEP");
     if (digitalRead(settings.power.sleep_override_pin) == settings.power.sleep_override_value) {
       Serial.println(F("Sleep override pin was held.  Suspending deep sleep."));
       suspendSleep = true;

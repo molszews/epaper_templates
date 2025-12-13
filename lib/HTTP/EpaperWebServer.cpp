@@ -3,6 +3,8 @@
 #include <KeyValueDatabase.h>
 #include <web_assets.h>
 
+#include "MemLeak.h"
+
 #if defined(ESP8266)
 #include <Updater.h>
 #elif defined(ESP32)
@@ -332,6 +334,8 @@ void EpaperWebServer::handleNoOp(RequestContext& request) {
 }
 
 void EpaperWebServer::handlePostSystem(RequestContext& request) {
+  Serial.println(F("handlePostSystem"));
+  MEMCK;
   JsonObject body = request.getJsonBody().as<JsonObject>();
   JsonVariant command = body[F("command")];
 
@@ -395,6 +399,8 @@ void EpaperWebServer::handleDeleteVariable(RequestContext& request) {
 }
 
 void EpaperWebServer::handleUpdateVariables(RequestContext& request) {
+  Serial.println(F("handleUpdateVariables"));
+  MEMCK;
   JsonObject vars = request.getJsonBody().as<JsonObject>();
 
   if (vars.isNull()) {
@@ -655,8 +661,9 @@ void EpaperWebServer::handleCreateFile(
   }
 }
 
-void EpaperWebServer::handleUpdateJsonFile(
-    const String& path, RequestContext& request) {
+void EpaperWebServer::handleUpdateJsonFile(const String& path, RequestContext& request) {
+  Serial.println(F("handleUpdateJsonFile"));
+  MEMCK;
   JsonObject body = request.getJsonBody().as<JsonObject>();
 
   if (body.isNull()) {
@@ -696,21 +703,30 @@ void EpaperWebServer::handleUpdateJsonFile(
 }
 
 void EpaperWebServer::handleUpdateSettings(RequestContext& request) {
+  Serial.println(F("handleUpdateSettings"));
+  MEMCK;
   JsonObject req = request.getJsonBody().as<JsonObject>();
+  Serial.println(F("handleUpdateSettings 2"));
+  MEMCK;
 
   if (req.isNull()) {
+  Serial.println(F("handleUpdateSettings 3"));
     request.response.json["error"] = F("Invalid JSON");
     request.response.setCode(400);
     return;
   }
 
   settings.patch(req);
+  Serial.println(F("handleUpdateSettings 4"));
   settings.save();
 
+  Serial.println(F("handleUpdateSettings 5"));
   if (this->changeFn) {
     this->changeFn();
+  Serial.println(F("handleUpdateSettings 6"));
   }
 
+  Serial.println(F("handleUpdateSettings 7"));
   request.response.json["success"] = true;
 }
 
@@ -762,6 +778,8 @@ void EpaperWebServer::handleGetScreens(RequestContext& request) {
 }
 
 void EpaperWebServer::handleGetFormattedVariables(RequestContext& request) {
+  Serial.println(F("handleGetFormattedVariables"));
+  MEMCK;
   JsonObject req = request.getJsonBody().as<JsonObject>();
 
   JsonArray variables = req[F("variables")];

@@ -158,7 +158,7 @@ class DisplayTemplateDriver {
       uint8_t textSize,
       std::shared_ptr<const VariableFormatter> formatter,
       JsonObject updateRects,
-      JsonObject spec,
+      const char* variableName,
       uint16_t index);
   std::shared_ptr<Region> addBitmapRegion(uint16_t x,
       uint16_t y,

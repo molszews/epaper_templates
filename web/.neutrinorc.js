@@ -19,6 +19,7 @@ module.exports = {
         loaders: ['sass-loader']
       },
       devServer: {
+        port: 9000,
         historyApiFallback: {
           rewrites: [
             { from: /^\/app\/.*$/, to: '/index.html' }
@@ -34,7 +35,7 @@ module.exports = {
         }
       }
     }),
-    styleMinify,
+    styleMinify(),
     (neutrino) => neutrino.config
       .plugin('compress')
       .use(CompressionPlugin, [{

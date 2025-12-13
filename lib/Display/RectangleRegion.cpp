@@ -32,14 +32,14 @@ void RectangleRegion::render(GxEPD2_GFX* display) {
       width,
       height);
 
-  display->writeFillRect(boundingBox.x,
+  display->fillRect(boundingBox.x,
       boundingBox.y,
       boundingBox.w,
       boundingBox.h,
       background_color);
 
   if (fillStyle == FillStyle::FILLED) {
-    display->writeFillRect(boundingBox.x, boundingBox.y, width, height, color);
+    display->fillRect(boundingBox.x, boundingBox.y, width, height, color);
   } else {
     display->drawRect(boundingBox.x, boundingBox.y, width, height, color);
   }

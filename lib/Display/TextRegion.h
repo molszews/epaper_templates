@@ -2,7 +2,6 @@
 
 #include <GxEPD2_EPD.h>
 #include <GxEPD2_GFX.h>
-#include <Adafruit_GFX.h>
 
 #include <memory>
 

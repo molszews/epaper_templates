@@ -31,21 +31,24 @@ TextRegion::TextRegion(
 TextRegion::~TextRegion() { }
 
 void TextRegion::render(GxEPD2_GFX* display) {
-  // Clear the previous text
-  // TODO: expose setting for background color
-  display->fillRect(
-    this->currentBound.x,
-    this->currentBound.y,
-    this->currentBound.w,
-    this->currentBound.h,
-    backgroundColor
-  );
 
-  display->setTextColor(color);
-  display->setFont(font);
-  display->setTextSize(size);
-  display->setCursor(this->boundingBox.x, this->boundingBox.y);
-  display->print(variableValue);
+
+    // Clear the previous text
+    // TODO: expose setting for background color
+    display->fillRect(
+      this->currentBound.x,
+      this->currentBound.y,
+      this->currentBound.w,
+      this->currentBound.h,
+      backgroundColor
+    );
+
+    display->setTextColor(color);
+    display->setFont(font);
+    display->setTextSize(size);
+    display->setCursor(this->boundingBox.x, this->boundingBox.y);
+    display->print(variableValue);
+
 
   // Find and persist bounding box.  Need to persist in case it shrinks next
   // time.  Update should always be for the larger bounding box.

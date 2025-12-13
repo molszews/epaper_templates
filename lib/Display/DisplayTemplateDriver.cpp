@@ -25,6 +25,14 @@ DisplayTemplateDriver::DisplayTemplateDriver(
 
 void DisplayTemplateDriver::init() {
   display->init(115200);
+
+  if (display->pages() > 1)
+  {
+    delay(100);
+    Serial.print("pages = "); Serial.print(display->pages()); Serial.print(" page height = "); Serial.println(display->pageHeight());
+    delay(1000);
+  }
+
   display->mirror(false);
 
   #if defined(ESP32)
@@ -65,18 +73,28 @@ void DisplayTemplateDriver::loop() {
   }
 
   if (shouldFullUpdate || dirty) {
+    Serial.println("shouldFullUpdate/dirty");
     time_t now = millis();
+
 
     if (shouldFullUpdate ||
         now > (lastFullUpdate + settings.display.full_refresh_period)) {
+      Serial.println("shouldFullUpdate 1");
       shouldFullUpdate = false;
       lastFullUpdate = now;
       fullUpdate();
+      Serial.println("shouldFullUpdate 11");
 
       // No need to do partial updates
       clearDirtyRegions();
+      Serial.println("shouldFullUpdate 12");
     } else {
+    Serial.println("shouldFullUpdate 2");
+
+      display->firstPage();
+      do {
       flushDirtyRegions(true);
+      } while (display->nextPage());
     }
 
     dirty = false;
@@ -106,10 +124,12 @@ void DisplayTemplateDriver::flushDirtyRegions(bool updateScreen) {
   while (curr != NULL) {
     std::shared_ptr<Region> region = curr->data;
 
+    Serial.println("flushDirtyRegions 1");
     if (region->isDirty()) {
-      Serial.printf_P(PSTR("Rendering %s\n"),
-          region->getVariableName().c_str());
-      region->render(display);
+      Serial.println("flushDirtyRegions 11");
+      Serial.printf_P(PSTR("Rendering %s\n"), region->getVariableName().c_str());
+
+        region->render(display);
     }
 
     curr = curr->next;
@@ -117,6 +137,7 @@ void DisplayTemplateDriver::flushDirtyRegions(bool updateScreen) {
 
   // Can skip partial updates if we don't need to update the screen
   if (updateScreen) {
+      Serial.println("flushDirtyRegions 20");
     // Issue partial updates to bounding boxes
     // This is crappy and O(n^2), but shouldn't matter unless there are
     // shitlaods of regions.
@@ -135,6 +156,7 @@ void DisplayTemplateDriver::flushDirtyRegions(bool updateScreen) {
           if (settings.display.windowed_updates) {
             display->displayWindow(bb.x, bb.y, bb.w, bb.h);
           }
+      Serial.println("flushDirtyRegions 30");
           flushedRegions.add(bb);
         }
       }
@@ -172,9 +194,13 @@ bool DisplayTemplateDriver::regionContainedIn(
 }
 
 void DisplayTemplateDriver::fullUpdate() {
+
+  display->firstPage();
+  do {
   flushDirtyRegions(false);
-  display->setFullWindow();
-  display->display(false);
+  } while (display->nextPage());
+  //display->setFullWindow();
+  //display->display(false);
 }
 
 void DisplayTemplateDriver::updateVariable(
@@ -252,6 +278,10 @@ void DisplayTemplateDriver::loadTemplate(const String& templateFilename) {
   DynamicJsonDocument jsonBuffer(JSON_TEMPLATE_BUFFER_SIZE);
   deserializeJson(jsonBuffer, file);
   file.close();
+  file = SPIFFS.open(templateFilename, "r");
+  const auto str = file.readString();
+  Serial.println(str);
+  file.close();
 
   JsonObject tmpl = jsonBuffer.as<JsonObject>();
 
@@ -264,6 +294,8 @@ void DisplayTemplateDriver::loadTemplate(const String& templateFilename) {
 
     return;
   }
+
+
 
   uint16_t backgroundColor =
       extractBackgroundColor(tmpl, defaultBackgroundColor);
@@ -328,7 +360,9 @@ std::shared_ptr<Region> DisplayTemplateDriver::addRectangleRegion(
       index);
   regions.add(region);
   region->updateValue(vars.get(variable));
-  region->render(display);
+
+    region->render(display);
+
   return region;
 }
 
@@ -396,7 +430,7 @@ void DisplayTemplateDriver::drawBitmap(GxEPD2_GFX* display,
     uint8_t b = bitmap[ix];
 
     for (size_t i = 0; i < 8; ++i) {
-      display->writePixel(_x++, _y, (b & 0x80) ? color : backgroundColor);
+      display->drawPixel(_x++, _y, (b & 0x80) ? color : backgroundColor);
 
       b <<= 1;
 
@@ -483,30 +517,71 @@ void DisplayTemplateDriver::renderTexts(
     auto textSize = extractTextSize(text);
 
     // Font should be set first because it fiddles with the cursor.
-    display->setFont(font);
-    display->setCursor(x, y);
-    display->setTextSize(textSize);
-    display->setTextColor(color);
+    // display->setFont(font);
+    // display->setCursor(x, y);
+    // display->setTextSize(textSize);
+    // display->setTextColor(color);
 
     // v2 format where there is an explicit "value" key
     if (text.containsKey("value")) {
       text = text["value"];
 
       if (text["type"] == "static") {
-        display->print(text["value"].as<const char*>());
+        // display->print(text["value"].as<const char*>());
+        Serial.println("renderTexts 1");
+
+        const char* txt = text["value"].as<const char*>();
+        auto formatter = formatterFactory.defaultFormatter;
+
+        std::shared_ptr<Region> region = addTextRegion(x,
+            y,
+            color,
+            backgroundColor,
+            font,
+            textSize,
+            formatter,
+            updateRects,
+            txt,
+            i);
+        Serial.println("renderTexts 2");
+        region->updateValue(txt);
+        Serial.println("renderTexts 3");
       }
       // fall back on v1 format where "static" and "variable" are inline with
       // the definition
     } else {
       if (text.containsKey("static")) {
-        display->print(text["static"].as<const char*>());
+        // display->print(text["static"].as<const char*>());
+        Serial.println("renderTexts 01");
+
+        const char* txt = text["static"].as<const char*>();
+        auto formatter = formatterFactory.defaultFormatter;
+
+        Serial.println("renderTexts 02");
+
+        std::shared_ptr<Region> region = addTextRegion(x,
+            y,
+            color,
+            backgroundColor,
+            font,
+            textSize,
+            formatter,
+            updateRects,
+            txt,
+            i);
+        Serial.println("renderTexts 03");
+        region->updateValue(txt);
+        Serial.println("renderTexts 04");
       }
     }
 
     if (text.containsKey("variable")) {
+        Serial.println("renderTexts 10");
       const String& variable = text["variable"].as<const char*>();
+      const char* variable2 = text["variable"].as<const char*>();
       auto formatter = formatterFactory.create(text);
 
+      Serial.println("renderTexts 11");
       std::shared_ptr<Region> region = addTextRegion(x,
           y,
           color,
@@ -515,9 +590,11 @@ void DisplayTemplateDriver::renderTexts(
           textSize,
           formatter,
           updateRects,
-          text,
+          variable2,
           i);
+      Serial.println("renderTexts 12");
       region->updateValue(vars.get(variable));
+      Serial.println("renderTexts 13");
     }
   }
 }
@@ -526,7 +603,7 @@ void DisplayTemplateDriver::renderLines(JsonArray lines) {
   for (JsonArray::iterator it = lines.begin(); it != lines.end(); ++it) {
     JsonObject line = it->as<JsonObject>();
 
-    display->writeLine(line["x1"],
+    display->drawLine(line["x1"],
         line["y1"],
         line["x2"],
         line["y2"],
@@ -566,9 +643,9 @@ std::shared_ptr<Region> DisplayTemplateDriver::addTextRegion(uint16_t x,
     uint8_t textSize,
     std::shared_ptr<const VariableFormatter> formatter,
     JsonObject updateRects,
-    JsonObject spec,
+    const char* variableName,
     uint16_t index) {
-  auto region = std::make_shared<TextRegion>(spec["variable"].as<const char*>(),
+  auto region = std::make_shared<TextRegion>(variableName,
       x,
       y,
       nullptr,  // fixed bound -- deprecated
