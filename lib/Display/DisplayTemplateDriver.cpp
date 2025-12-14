@@ -383,20 +383,22 @@ void DisplayTemplateDriver::renderBitmap(const String& filename,
     uint16_t h,
     uint16_t color,
     uint16_t backgroundColor) {
-  if (!SPIFFS.exists(filename)) {
+
+  String path = String(BITMAPS_DIRECTORY) + "/" + filename;
+  if (!SPIFFS.exists(path)) {
     Serial.print(F("WARN - tried to render bitmap file that doesn't exist: "));
-    Serial.println(filename);
+    Serial.println(path);
     return;
   }
 
   Serial.printf_P(PSTR("Rendering bitmap: %s, x=%d, y=%d, w=%d, h=%d\n"),
-      filename.c_str(),
+      path.c_str(),
       x,
       y,
       w,
       h);
 
-  File file = SPIFFS.open(filename, "r");
+  File file = SPIFFS.open(path, "r");
   size_t size = w * h / 8;
   uint8_t bits[size];
   file.readBytes(reinterpret_cast<char*>(bits), size);

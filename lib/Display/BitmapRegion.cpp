@@ -17,11 +17,12 @@ BitmapRegion::BitmapRegion(const String& variable,
 BitmapRegion::~BitmapRegion() {}
 
 void BitmapRegion::render(GxEPD2_GFX* display) {
-  if (!SPIFFS.exists(variableValue)) {
+  String path = String(BITMAPS_DIRECTORY) + "/" + variableValue;
+  if (!SPIFFS.exists(path)) {
     Serial.print(F("WARN - tried to render bitmap file that doesn't exist: "));
-    Serial.println(variableValue);
+    Serial.println(path);
   } else {
-    File file = SPIFFS.open(variableValue, "r");
+    File file = SPIFFS.open(path, "r");
     size_t size = (boundingBox.w * boundingBox.h) / 8;
     uint8_t bits[size];
     file.readBytes(reinterpret_cast<char*>(bits), size);
